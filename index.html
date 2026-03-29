@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lojistik Operasyon Analizi — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg:       #0D0F14;
+    --surface:  #141720;
+    --card:     #1A1E2E;
+    --border:   #252A3A;
+    --accent:   #3D8EF0;
+    --danger:   #F05C5C;
+    --success:  #3DF0A0;
+    --warning:  #F0C63D;
+    --muted:    #7A8099;
+    --text:     #E8EAF0;
+    --text-dim: #9AA0B8;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .brand-name {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .topbar-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    gap: 24px;
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* ── LAYOUT ── */
+  .main {
+    padding: 28px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .page-header {
+    margin-bottom: 28px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card:hover {
+    border-color: var(--accent);
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .kpi-card.accent::before  { background: var(--accent); }
+  .kpi-card.danger::before  { background: var(--danger); }
+  .kpi-card.success::before { background: var(--success); }
+  .kpi-card.warning::before { background: var(--warning); }
+  .kpi-card.muted::before   { background: var(--muted); }
+
+  .kpi-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: var(--mono);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-size: 30px;
+    font-weight: 700;
+    font-family: var(--mono);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .kpi-card.accent  .kpi-value { color: var(--accent); }
+  .kpi-card.danger  .kpi-value { color: var(--danger); }
+  .kpi-card.success .kpi-value { color: var(--success); }
+  .kpi-card.warning .kpi-value { color: var(--warning); }
+  .kpi-card.muted   .kpi-value { color: var(--text); }
+
+  .kpi-change {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── GRID ── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .grid-left-wide {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  .panel-tag {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .panel-body {
+    padding: 20px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 220px;
+  }
+
+  .chart-wrap.tall {
+    height: 280px;
+  }
+
+  /* ── CITY TABLE ── */
+  .city-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .city-table th {
+    text-align: left;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .city-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid #1E2232;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .city-table tr:last-child td { border-bottom: none; }
+
+  .delay-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .delay-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  .badge-danger  { background: #F05C5C22; color: var(--danger);  border: 1px solid #F05C5C44; }
+  .badge-warning { background: #F0C63D22; color: var(--warning); border: 1px solid #F0C63D44; }
+  .badge-success { background: #3DF0A022; color: var(--success); border: 1px solid #3DF0A044; }
+
+  /* ── REASON LIST ── */
+  .reason-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .reason-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .reason-rank {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    width: 18px;
+    text-align: center;
+  }
+
+  .reason-name {
+    flex: 1;
+    color: var(--text-dim);
+  }
+
+  .reason-bar-wrap {
+    width: 100px;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .reason-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .reason-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    width: 36px;
+    text-align: right;
+    color: var(--text);
+  }
+
+  /* ── DRIVER TABLE ── */
+  .driver-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .driver-table th {
+    text-align: left;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 1px;
+  }
+
+  .driver-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #1E2232;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .driver-table tr:last-child td { border-bottom: none; }
+
+  .sat-stars { color: var(--warning); letter-spacing: -1px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 40px;
+    padding: 24px 32px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .footer a { color: var(--accent); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  /* ── SECTION DIVIDER ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    margin-top: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-3, .grid-left-wide { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    .topbar-meta { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">🚚</div>
+    <div>
+      <div class="brand-name">LogiOps Analytics</div>
+      <div class="brand-sub">Operasyonel Zeka Platformu</div>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <span><span class="live-dot"></span>CANLI</span>
+    <span>Dönem: 2023–2024</span>
+    <span>v1.0.0</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div class="page-title">Operasyon &amp; Lojistik Optimizasyon Paneli</div>
+    <div class="page-subtitle">// 15.000 sipariş · 17 şehir · 120 sürücü · 8 depo · 730 gün</div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi-card accent">
+      <div class="kpi-label">Toplam Sipariş</div>
+      <div class="kpi-value">15.000</div>
+      <div class="kpi-change">2023–2024 · Türkiye geneli</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">Gecikme Oranı</div>
+      <div class="kpi-value">%21.8</div>
+      <div class="kpi-change">3.264 gecikmeli teslimat</div>
+    </div>
+    <div class="kpi-card warning">
+      <div class="kpi-label">Ort. Gecikme</div>
+      <div class="kpi-value">2.0 gün</div>
+      <div class="kpi-change">Gecikmeli teslimatlar için</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="kpi-label">Müşteri Memnuniyet</div>
+      <div class="kpi-value">4.21</div>
+      <div class="kpi-change">5 üzerinden · tüm teslimatlar</div>
+    </div>
+    <div class="kpi-card muted">
+      <div class="kpi-label">Ort. Teslimat Maliyeti</div>
+      <div class="kpi-value">61₺</div>
+      <div class="kpi-change">Ağırlık + mesafe + öncelik</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: GECİKME -->
+  <div class="section-label">// gecikme analizi</div>
+
+  <div class="grid-left-wide">
+
+    <!-- Aylık sipariş + gecikme trendi -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Aylık Sipariş Hacmi &amp; Gecikme Trendi</div>
+        <span class="panel-tag">Zaman Serisi</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap tall">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gecikme sebepleri -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Gecikme Sebepleri (Pareto)</div>
+        <span class="panel-tag">Top 8</span>
+      </div>
+      <div class="panel-body">
+        <div class="reason-list">
+          <div class="reason-item">
+            <span class="reason-rank">#1</span>
+            <span class="reason-name">Hava Koşulları</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:100%;background:var(--danger)"></div></div>
+            <span class="reason-pct">%21.0</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#2</span>
+            <span class="reason-name">Yol Çalışması</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:45%;background:var(--warning)"></div></div>
+            <span class="reason-pct">%9.5</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#3</span>
+            <span class="reason-name">Depo Gecikme</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:44%"></div></div>
+            <span class="reason-pct">%9.3</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#4</span>
+            <span class="reason-name">Trafik Yoğunluğu</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:43%"></div></div>
+            <span class="reason-pct">%9.1</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#5</span>
+            <span class="reason-name">Araç Arızası</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:41%"></div></div>
+            <span class="reason-pct">%8.7</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#6</span>
+            <span class="reason-name">Alıcı Mevcut Değil</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:40%"></div></div>
+            <span class="reason-pct">%8.5</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#7</span>
+            <span class="reason-name">Adres Bulunamadı</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:38%"></div></div>
+            <span class="reason-pct">%8.1</span>
+          </div>
+          <div class="reason-item">
+            <span class="reason-rank">#8</span>
+            <span class="reason-name">Yüksek Sipariş Hacmi</span>
+            <div class="reason-bar-wrap"><div class="reason-bar-fill" style="width:34%"></div></div>
+            <span class="reason-pct">%7.2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: ŞEHİR + DEPO -->
+  <div class="section-label">// şehir &amp; depo performansı</div>
+
+  <div class="grid-2">
+
+    <!-- Şehir gecikme tablosu -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Şehir Bazlı Gecikme Oranları</div>
+        <span class="panel-tag">17 Şehir · Sıralı</span>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <table class="city-table">
+          <thead>
+            <tr>
+              <th>Şehir</th>
+              <th>Gecikme Oranı</th>
+              <th>Görsel</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody id="cityTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Depo verimliliği -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Depo Verimliliği &amp; Kapasite</div>
+        <span class="panel-tag">8 Depo</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap tall">
+          <canvas id="warehouseChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ÜRÜN + ÖNCELİK -->
+  <div class="section-label">// ürün &amp; öncelik analizi</div>
+
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Öncelik Bazlı Gecikme</div>
+        <span class="panel-tag">Donut</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="priorityChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Haftalık Sipariş Döngüsü</div>
+        <span class="panel-tag">Mevsimsellik</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="weekdayChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Ürün Kategorisi Gecikme</div>
+        <span class="panel-tag">Bar</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: TAHMİN + SÜRÜCÜ -->
+  <div class="section-label">// ml tahmin &amp; sürücü performansı</div>
+
+  <div class="grid-left-wide">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">30 Günlük Talep Tahmini &amp; Personel Planlaması</div>
+        <span class="panel-tag">ML Model 3 · EWMA + Mevsimsel</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap tall"><canvas id="forecastChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Sürücü Performans Dağılımı</div>
+        <span class="panel-tag">120 Sürücü</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap" style="height:160px;margin-bottom:16px;">
+          <canvas id="driverPieChart"></canvas>
+        </div>
+        <table class="driver-table">
+          <thead>
+            <tr>
+              <th>Kategori</th>
+              <th>Sayı</th>
+              <th>Ort. Gecikme</th>
+              <th>Memnuniyet</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-success">Yıldız</span></td>
+              <td>12</td>
+              <td>%6.2</td>
+              <td class="sat-stars">★★★★★</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">İyi</span></td>
+              <td>38</td>
+              <td>%13.4</td>
+              <td class="sat-stars">★★★★☆</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">Ortalama</span></td>
+              <td>52</td>
+              <td>%24.1</td>
+              <td class="sat-stars">★★★☆☆</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-danger">Gelişim</span></td>
+              <td>18</td>
+              <td>%38.7</td>
+              <td class="sat-stars">★★☆☆☆</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- FOOTER -->
+<div class="footer">
+  Lojistik Operasyon Optimizasyonu · Junior Data Analyst Portföy Projesi ·
+  <a href="#">GitHub</a> · Python + Scikit-Learn + Pandas
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────
+// CHART.JS GLOBAL DEFAULTS
+// ──────────────────────────────────────────────────────────
+Chart.defaults.color = '#7A8099';
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const ACCENT   = '#3D8EF0';
+const DANGER   = '#F05C5C';
+const SUCCESS  = '#3DF0A0';
+const WARNING  = '#F0C63D';
+const SURFACE  = '#252A3A';
+const MUTED    = '#7A8099';
+
+// ──────────────────────────────────────────────────────────
+// DATA
+// ──────────────────────────────────────────────────────────
+
+// Aylık veriler (2023-2024, 24 ay)
+const months = ['Oca\'23','Şub\'23','Mar\'23','Nis\'23','May\'23','Haz\'23',
+                 'Tem\'23','Ağu\'23','Eyl\'23','Eki\'23','Kas\'23','Ara\'23',
+                 'Oca\'24','Şub\'24','Mar\'24','Nis\'24','May\'24','Haz\'24',
+                 'Tem\'24','Ağu\'24','Eyl\'24','Eki\'24','Kas\'24','Ara\'24'];
+
+const monthlyOrders = [
+  420, 390, 460, 490, 510, 480, 450, 440, 500, 540, 720, 780,
+  430, 400, 470, 500, 520, 490, 460, 450, 510, 560, 740, 800
+];
+
+const monthlyDelayRate = [
+  24, 27, 20, 18, 19, 20, 19, 18, 21, 22, 28, 30,
+  23, 26, 19, 17, 18, 19, 18, 17, 20, 21, 27, 29
+];
+
+// Şehir verileri
+const cityData = [
+  { name: 'Diyarbakır', rate: 41.7, level: 'danger'  },
+  { name: 'Erzurum',    rate: 37.2, level: 'danger'  },
+  { name: 'Trabzon',    rate: 34.1, level: 'danger'  },
+  { name: 'Samsun',     rate: 28.5, level: 'warning' },
+  { name: 'Gaziantep',  rate: 26.3, level: 'warning' },
+  { name: 'Konya',      rate: 24.8, level: 'warning' },
+  { name: 'Adana',      rate: 23.1, level: 'warning' },
+  { name: 'Antalya',    rate: 20.7, level: 'warning' },
+  { name: 'Kayseri',    rate: 19.4, level: 'warning' },
+  { name: 'İstanbul',   rate: 18.2, level: 'warning' },
+  { name: 'Ankara',     rate: 17.1, level: 'warning' },
+  { name: 'Mersin',     rate: 16.8, level: 'warning' },
+  { name: 'Eskişehir',  rate: 16.0, level: 'warning' },
+  { name: 'Manisa',     rate: 15.5, level: 'success' },
+  { name: 'İzmir',      rate: 15.2, level: 'success' },
+  { name: 'Kocaeli',    rate: 15.1, level: 'success' },
+  { name: 'Bursa',      rate: 14.3, level: 'success' },
+];
+
+// Tahmin verisi (30 gün)
+const forecastDays = Array.from({length:30}, (_,i)=>`G+${i+1}`);
+const forecastBase  = Array.from({length:30}, (_,i) => {
+  const weekday = i % 7;
+  const base = 18;
+  const dayFactor = [1.1,1.05,1.0,1.05,1.15,0.7,0.5][weekday];
+  return Math.round(base * dayFactor);
+});
+const forecastUpper = forecastBase.map(v => Math.round(v * 1.15));
+const forecastLower = forecastBase.map(v => Math.round(v * 0.85));
+const requiredDrivers = forecastBase.map(v => Math.ceil(v / 12 * 1.15));
+
+// ──────────────────────────────────────────────────────────
+// 1. TREND CHART (Çizgi + Bar — ikisi birden)
+// ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('trendChart'), {
+  data: {
+    labels: months,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Sipariş Hacmi',
+        data: monthlyOrders,
+        backgroundColor: `${ACCENT}33`,
+        borderColor: `${ACCENT}66`,
+        borderWidth: 1,
+        yAxisID: 'y1',
+        order: 2,
+      },
+      {
+        type: 'line',
+        label: 'Gecikme Oranı (%)',
+        data: monthlyDelayRate,
+        borderColor: DANGER,
+        backgroundColor: `${DANGER}18`,
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: DANGER,
+        tension: 0.4,
+        fill: true,
+        yAxisID: 'y2',
+        order: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 10, padding: 16 } },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      x: { grid: { color: '#1E2232' }, ticks: { maxRotation: 45 } },
+      y1: {
+        type: 'linear', position: 'left',
+        grid: { color: '#1E2232' },
+        title: { display: true, text: 'Sipariş Sayısı', color: MUTED }
+      },
+      y2: {
+        type: 'linear', position: 'right',
+        grid: { display: false },
+        title: { display: true, text: 'Gecikme (%)', color: MUTED },
+        min: 0, max: 40
+      }
+    }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 2. ŞEHİR TABLOSU
+// ──────────────────────────────────────────────────────────
+const tbody = document.getElementById('cityTableBody');
+cityData.forEach(city => {
+  const badgeClass = city.level === 'danger' ? 'badge-danger'
+                   : city.level === 'warning' ? 'badge-warning' : 'badge-success';
+  const badgeText  = city.level === 'danger' ? 'Kritik'
+                   : city.level === 'warning' ? 'Yüksek' : 'Düşük';
+  const barColor   = city.level === 'danger' ? 'var(--danger)'
+                   : city.level === 'warning' ? 'var(--warning)' : 'var(--success)';
+  const barWidth   = (city.rate / 45 * 100).toFixed(0);
+
+  tbody.insertAdjacentHTML('beforeend', `
+    <tr>
+      <td style="color:var(--text)">${city.name}</td>
+      <td style="color:${barColor};font-weight:600">%${city.rate}</td>
+      <td>
+        <div class="delay-bar-wrap">
+          <div class="delay-bar-fill" style="width:${barWidth}%;background:${barColor}"></div>
+        </div>
+      </td>
+      <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+    </tr>
+  `);
+});
+
+// ──────────────────────────────────────────────────────────
+// 3. DEPO VERİMLİLİĞİ (Yatay Çubuk)
+// ──────────────────────────────────────────────────────────
+const wh_labels = ['WH-01 İstanbul','WH-02 Ankara','WH-03 İzmir',
+                   'WH-04 Bursa','WH-05 Antalya','WH-06 Adana',
+                   'WH-07 Konya','WH-08 Kocaeli'];
+const wh_eff    = [87, 82, 85, 83, 79, 76, 74, 86];
+const wh_cap    = [72, 65, 68, 64, 70, 67, 71, 66];
+
+new Chart(document.getElementById('warehouseChart'), {
+  data: {
+    labels: wh_labels,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Verimlilik (%)',
+        data: wh_eff,
+        backgroundColor: wh_eff.map(v => v > 84 ? `${SUCCESS}88` : v > 78 ? `${WARNING}88` : `${DANGER}88`),
+        borderColor:     wh_eff.map(v => v > 84 ? SUCCESS : v > 78 ? WARNING : DANGER),
+        borderWidth: 1,
+      },
+      {
+        type: 'bar',
+        label: 'Kapasite Kullanımı (%)',
+        data: wh_cap,
+        backgroundColor: `${ACCENT}55`,
+        borderColor: ACCENT,
+        borderWidth: 1,
+      }
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
+    scales: {
+      x: { min: 60, max: 100, grid: { color: '#1E2232' } },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 4. ÖNCELİK DONUT
+// ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('priorityChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Express', 'Standard', 'Economy'],
+    datasets: [{
+      data: [12.1, 21.8, 32.5],
+      backgroundColor: [`${SUCCESS}CC`, `${WARNING}CC`, `${DANGER}CC`],
+      borderColor: ['#0D0F14'],
+      borderWidth: 2,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 12, boxWidth: 10 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: %${ctx.raw} gecikme oranı`
+        }
+      }
+    }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 5. HAFTALIK DÖNGÜ (Radar)
+// ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('weekdayChart'), {
+  type: 'radar',
+  data: {
+    labels: ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'],
+    datasets: [{
+      label: 'Sipariş Yoğunluğu',
+      data: [110, 105, 100, 105, 115, 70, 50],
+      backgroundColor: `${ACCENT}22`,
+      borderColor: ACCENT,
+      borderWidth: 2,
+      pointBackgroundColor: ACCENT,
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      r: {
+        grid: { color: '#252A3A' },
+        angleLines: { color: '#252A3A' },
+        pointLabels: { font: { size: 10 } },
+        ticks: { display: false },
+        min: 0,
+      }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 6. KATEGORİ GECİKME
+// ──────────────────────────────────────────────────────────
+const categories = ['Mobilya','Elektronik','Ev & Yaşam','Gıda',
+                    'Spor Malzemesi','Otomotiv Parça','Kozmetik',
+                    'Tekstil','Oyuncak','Kitap/Kırtasiye'];
+const catDelayRates = [28.4, 25.1, 23.8, 22.5, 21.9, 21.2, 20.4, 19.7, 18.3, 16.2];
+
+new Chart(document.getElementById('categoryChart'), {
+  type: 'bar',
+  data: {
+    labels: categories,
+    datasets: [{
+      label: 'Gecikme Oranı (%)',
+      data: catDelayRates,
+      backgroundColor: catDelayRates.map(v =>
+        v > 25 ? `${DANGER}CC` : v > 21 ? `${WARNING}CC` : `${SUCCESS}CC`
+      ),
+      borderWidth: 0,
+      borderRadius: 3,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#1E2232' }, min: 0, max: 35 },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 7. TAHMİN GRAFİĞİ
+// ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('forecastChart'), {
+  data: {
+    labels: forecastDays,
+    datasets: [
+      {
+        type: 'line',
+        label: 'Güven Aralığı Üst',
+        data: forecastUpper,
+        borderColor: 'transparent',
+        backgroundColor: `${DANGER}18`,
+        fill: '+1',
+        pointRadius: 0,
+        tension: 0.4,
+        order: 3,
+      },
+      {
+        type: 'line',
+        label: 'Güven Aralığı Alt',
+        data: forecastLower,
+        borderColor: 'transparent',
+        backgroundColor: 'transparent',
+        fill: false,
+        pointRadius: 0,
+        tension: 0.4,
+        order: 4,
+      },
+      {
+        type: 'line',
+        label: 'Tahmin Edilen Sipariş',
+        data: forecastBase,
+        borderColor: DANGER,
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        borderDash: [6, 3],
+        pointRadius: 3,
+        pointBackgroundColor: DANGER,
+        tension: 0.4,
+        order: 1,
+      },
+      {
+        type: 'bar',
+        label: 'Gerekli Sürücü',
+        data: requiredDrivers,
+        backgroundColor: `${ACCENT}44`,
+        borderColor: ACCENT,
+        borderWidth: 1,
+        yAxisID: 'y2',
+        order: 2,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 10, padding: 16,
+        filter: item => !item.text.includes('Güven')
+      }},
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      x: { grid: { color: '#1E2232' } },
+      y: {
+        grid: { color: '#1E2232' },
+        title: { display: true, text: 'Sipariş Sayısı', color: MUTED }
+      },
+      y2: {
+        type: 'linear', position: 'right',
+        grid: { display: false },
+        title: { display: true, text: 'Sürücü Sayısı', color: MUTED },
+      }
+    }
+  }
+});
+
+// ──────────────────────────────────────────────────────────
+// 8. SÜRÜCÜ PIE
+// ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('driverPieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Yıldız Sürücü','İyi Performans','Ortalama','Gelişim Gerekli'],
+    datasets: [{
+      data: [12, 38, 52, 18],
+      backgroundColor: [`${SUCCESS}CC`,`${ACCENT}CC`,`${WARNING}CC`,`${DANGER}CC`],
+      borderColor: '#141720',
+      borderWidth: 2,
+      hoverOffset: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '60%',
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { padding: 10, boxWidth: 10, font: { size: 10 } }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
